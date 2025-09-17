@@ -116,6 +116,29 @@ config.keys = {
     mods = "LEADER|CTRL",
     action = wezterm.action.SendKey({ key = "a", mods = "CTRL" }),
   },
+
+  -- Open link below cursor
+  {
+    key = "g",
+    mods = "LEADER",
+    action = wezterm.action_callback(function(win, pane)
+      -- Get selected text in copy mode
+      local selection = win:get_selection_text_for_pane(pane)
+
+      if not selection or selection == "" then
+        win:toast_notification("WezTerm", "No text selected", nil, 4000)
+        return
+      end
+
+      -- Look for a URL in the selection
+      local url = selection:match("(https?://[%w%p]+)")
+      if url then
+        wezterm.open_with(url)
+      else
+        win:toast_notification("WezTerm", "No URL found in selection", nil, 4000)
+      end
+    end),
+  },
 }
 
 config.enable_tab_bar = false
