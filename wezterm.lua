@@ -41,6 +41,19 @@ config.leader = {
   timeout_milliseconds = 1000,
 }
 
+local function find_git_repo_name(path)
+  local check = path
+  while check and check ~= "" and check ~= "/" do
+    local f = io.open(check .. "/.git/HEAD", "r")
+    if f then
+      f:close()
+      return check:match("([^/]+)$")
+    end
+    check = check:match("^(.+)/[^/]*$")
+  end
+  return nil
+end
+
 config.keys = {
   {
     key = "t",
@@ -110,6 +123,29 @@ config.keys = {
     action = wezterm.action.CloseCurrentPane({ confirm = true }),
   },
 
+  -- Rename current tab
+  {
+    key = "r",
+    mods = "LEADER",
+    action = wezterm.action_callback(function(window, pane)
+      local cwd = pane:get_current_working_dir()
+      local ok_t, pane_title = pcall(function()
+        return pane:get_title()
+      end)
+      local initial = (cwd and cwd.file_path and find_git_repo_name(cwd.file_path)) or (ok_t and pane_title) or ""
+      window:perform_action(
+        wezterm.action.PromptInputLine({
+          description = "Rename tab (repo: " .. (initial or "") .. "):",
+          action = wezterm.action_callback(function(win, p, line)
+            if line then
+              win:active_tab():set_title(line)
+            end
+          end),
+        }),
+        pane
+      )
+    end),
+  },
   -- Send the leader key itself when pressed twice
   {
     key = "a",
@@ -146,5 +182,52 @@ config.show_tabs_in_tab_bar = true
 config.show_new_tab_button_in_tab_bar = true
 config.show_tab_index_in_tab_bar = true
 config.switch_to_last_active_tab_when_closing_tab = true
+
+local function get_tab_title(tab)
+  local title = tab.tab_title
+  if title and #title > 0 then
+    return title
+  end
+
+  local cwd
+  local ok, val = pcall(function()
+    return tab.active_pane:get_current_working_dir()
+  end)
+  if ok then
+    cwd = val
+  else
+    ok, val = pcall(function()
+      return tab.active_pane.current_working_dir
+    end)
+    if ok then
+      cwd = val
+    end
+  end
+
+  if cwd and cwd.file_path then
+    local repo_name = find_git_repo_name(cwd.file_path)
+    if repo_name then
+      return repo_name
+    end
+  end
+
+  local ok_t, pane_title = pcall(function()
+    return tab.active_pane:get_title()
+  end)
+  if not ok_t then
+    ok_t, pane_title = pcall(function()
+      return tab.active_pane.title
+    end)
+  end
+  return (ok_t and pane_title) or ""
+end
+
+wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_width)
+  return get_tab_title(tab)
+end)
+
+wezterm.on("format-window-title", function(tab, pane, tabs, panes, config)
+  return get_tab_title(tab)
+end)
 
 return config
