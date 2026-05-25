@@ -11,7 +11,7 @@ config.color_scheme = "Solarized Dark Higher Contrast"
 -- config.color_scheme = 'Catppuccin Macchiato'
 -- config.color_scheme = 'Catppuccin Mocha'
 
-config.font = wezterm.font("FiraCode Nerd Font")
+config.font = wezterm.font_with_fallback({ "FiraCode Nerd Font", "Noto Color Emoji" })
 -- != -> ==> |>
 config.font_size = 9
 
